@@ -75,7 +75,7 @@ class UniversalApproximator {
     setupChart() {
         const ctx = document.getElementById('main-chart').getContext('2d');
         this.chart = new Chart(ctx, {
-            type: 'scatter',
+            type: 'line',
             data: {
                 labels: [],
                 datasets: []
@@ -86,12 +86,43 @@ class UniversalApproximator {
                 plugins: {
                     title: {
                         display: true,
-                        text: 'Neural Network Universal Approximation'
                     }
                 },
                 scales: {
-                    x: { type: 'linear', title: { display: true, text: 'x' } },
-                    y: { type: 'linear', title: { display: true, text: 'f(x)' } }
+                    x: { 
+                        type: 'linear',
+                        title: { 
+                            display: true, 
+                            text: 'x',
+                            color: '#f4f4f5',
+                            font: { size: 16, weight: '600' }
+                        },
+                        ticks: { 
+                            color: '#d4d4d8',
+                            font: { size: 14 }
+                        },
+                        grid: { 
+                            color: '#404040',
+                            lineWidth: 1
+                        }
+                    },
+                    y: { 
+                        type: 'linear',
+                        title: { 
+                            display: true, 
+                            text: 'f(x)',
+                            color: '#f4f4f5',
+                            font: { size: 16, weight: '600' }
+                        },
+                        ticks: { 
+                            color: '#d4d4d8',
+                            font: { size: 14 }
+                        },
+                        grid: { 
+                            color: '#404040',
+                            lineWidth: 1
+                        }
+                    }
                 }
             }
         });
