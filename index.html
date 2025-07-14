@@ -40,8 +40,22 @@
             
             <button id="train-btn">Train Network</button>
         </div>
-        
+
         <div class="visualization">
+            <div id="loading-overlay" class="loading-overlay hidden">
+                <div class="spinner"></div>
+                <p>Learning...</p>
+            </div>
+
+            <div class="network-container">
+                <canvas id="network-canvas"></canvas>
+                <div class="zoom-controls">
+                    <button id="zoom-in">+</button>
+                    <button id="zoom-out">-</button>
+                    <button id="reset-view">Reset</button>
+                </div>
+            </div>
+
             <div class="chart-container">
                 <canvas id="main-chart"></canvas>
             </div>
