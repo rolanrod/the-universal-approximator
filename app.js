@@ -13,6 +13,7 @@ class UniversalApproximator {
         this.chartZoom = 1;
         this.chartPanX = 0;
         this.chartPanY = 0;
+        this.zoomEnabled = true;
         this.init();
     }
 
@@ -41,6 +42,10 @@ class UniversalApproximator {
             this.trainModel();
         });
 
+        document.getElementById('clear-btn').addEventListener('click', () => {
+            this.clearResults();
+        });
+
         document.getElementById('zoom-in').addEventListener('click', () => {
             this.zoom = Math.min(this.zoom * 1.2, 3);
             if (this.model) this.drawNetwork();
@@ -58,18 +63,20 @@ class UniversalApproximator {
             if (this.model) this.drawNetwork();
         });
 
-        // Chart zoom controls
         document.getElementById('chart-zoom-in').addEventListener('click', () => {
+            if (!this.zoomEnabled) return;
             this.chartZoom = Math.min(this.chartZoom * 1.2, 5);
             this.updateChartZoom();
         });
 
         document.getElementById('chart-zoom-out').addEventListener('click', () => {
+            if (!this.zoomEnabled) return;
             this.chartZoom = Math.max(this.chartZoom * 0.8, 0.2);
             this.updateChartZoom();
         });
 
         document.getElementById('chart-reset').addEventListener('click', () => {
+            if (!this.zoomEnabled) return;
             this.chartZoom = 1;
             this.chartPanX = 0;
             this.chartPanY = 0;
@@ -104,9 +111,17 @@ class UniversalApproximator {
         const func = document.getElementById('function-input').value;
         const expr = math.parse(func);
         const compiled = expr.compile();
+        
+        const baseRange = 10;
+        const range = baseRange / this.chartZoom;
+        const centerX = this.chartPanX;
+        const xMin = centerX - range/2;
+        const xMax = centerX + range/2;
+        const stepSize = range / 200;
+        
         const xTrain = [];
         const yTrain = [];
-        for (let x = -5; x <= 5; x += 0.05) {
+        for (let x = xMin; x <= xMax; x += stepSize) {
             xTrain.push(x);
             const y = compiled.evaluate({ x: x });
             yTrain.push(y);
@@ -116,6 +131,9 @@ class UniversalApproximator {
     }
 
     async trainModel() {
+        this.zoomEnabled = false;
+        this.disableZoomControls();
+        
         document.getElementById('loading-overlay').classList.remove('hidden');
         this.model = this.createModel();
         const epochs = parseInt(document.getElementById('epochs').value);
@@ -513,12 +531,12 @@ class UniversalApproximator {
             this.chart.data.datasets = datasets;
             this.chart.update('active');
             
-            // Show custom legend
             document.getElementById('custom-legend').style.display = 'flex';
+            document.getElementById('clear-btn').style.display = 'inline-block';
     }
 
     updateChartZoom() {
-        const baseRange = 10; // Base range from -5 to 5
+        const baseRange = 10;
         const range = baseRange / this.chartZoom;
         const centerX = this.chartPanX;
         const centerY = this.chartPanY;
@@ -534,30 +552,30 @@ class UniversalApproximator {
     setupChartZoom() {
         const chartCanvas = document.getElementById('main-chart');
         
-        // Mouse wheel zoom
         chartCanvas.addEventListener('wheel', (e) => {
+            if (!this.zoomEnabled) return;
             e.preventDefault();
             const delta = e.deltaY > 0 ? 0.9 : 1.1;
             this.chartZoom = Math.min(Math.max(0.2, this.chartZoom * delta), 5);
             this.updateChartZoom();
         });
 
-        // Mouse drag to pan
         let isDragging = false;
         let lastX, lastY;
 
         chartCanvas.addEventListener('mousedown', (e) => {
+            if (!this.zoomEnabled) return;
             isDragging = true;
             lastX = e.offsetX;
             lastY = e.offsetY;
         });
 
         chartCanvas.addEventListener('mousemove', (e) => {
-            if (isDragging) {
+            if (isDragging && this.zoomEnabled) {
                 const deltaX = (e.offsetX - lastX) * 0.01 / this.chartZoom;
                 const deltaY = (e.offsetY - lastY) * 0.01 / this.chartZoom;
                 this.chartPanX -= deltaX;
-                this.chartPanY += deltaY; // Inverted for chart coordinates
+                this.chartPanY += deltaY;
                 lastX = e.offsetX;
                 lastY = e.offsetY;
                 this.updateChartZoom();
@@ -571,6 +589,46 @@ class UniversalApproximator {
         chartCanvas.addEventListener('mouseleave', () => {
             isDragging = false;
         });
+    }
+
+    disableZoomControls() {
+        document.getElementById('chart-zoom-in').disabled = true;
+        document.getElementById('chart-zoom-out').disabled = true;
+        document.getElementById('chart-reset').disabled = true;
+    }
+
+    enableZoomControls() {
+        document.getElementById('chart-zoom-in').disabled = false;
+        document.getElementById('chart-zoom-out').disabled = false;
+        document.getElementById('chart-reset').disabled = false;
+    }
+
+    clearResults() {
+        this.model = null;
+        this.neuronData = null;
+        this.animationRunning = false;
+        this.zoomEnabled = true;
+        
+        this.chart.data.datasets = [];
+        this.chart.update('none');
+        
+        const canvas = document.getElementById('network-canvas');
+        const ctx = this.networkCtx;
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
+        
+        document.getElementById('custom-legend').style.display = 'none';
+        document.getElementById('clear-btn').style.display = 'none';
+        
+        this.enableZoomControls();
+        
+        // Reset chart zoom to default [-5, 5] domain
+        this.chartZoom = 1;
+        this.chartPanX = 0;
+        this.chartPanY = 0;
+        this.updateChartZoom();
     }
 
 }

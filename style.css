@@ -104,7 +104,7 @@ p {
     font-size: 13px;
 }
 
-#train-btn {
+#train-btn, #clear-btn {
     padding: 12px 24px;
     background: #06b6d4;
     color: #0a0a0a;
@@ -114,17 +114,27 @@ p {
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
+    margin-left: 8px;
 }
 
-#train-btn:hover {
+#train-btn:hover, #clear-btn:hover {
     background: #0891b2;
     transform: translateY(-1px);
 }
 
-#train-btn:disabled {
+#train-btn:disabled, #clear-btn:disabled {
     opacity: 0.4;
     cursor: not-allowed;
     transform: none;
+}
+
+#clear-btn {
+    background: #ef4444;
+    color: white;
+}
+
+#clear-btn:hover {
+    background: #dc2626;
 }
 
 .loading-overlay {
@@ -257,6 +267,16 @@ p {
 .chart-zoom-controls button:hover {
     background: #404040;
     color: #f4f4f5;
+}
+
+.chart-zoom-controls button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.chart-zoom-controls button:disabled:hover {
+    background: #262626;
+    color: #d4d4d8;
 }
 
 .custom-legend {
