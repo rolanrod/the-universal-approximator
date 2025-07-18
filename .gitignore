@@ -1,2 +1,23 @@
-.node_modules
-.main.py
+# Dependencies
+node_modules/
+
+# Python files
+main.py
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
