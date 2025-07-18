@@ -57,7 +57,26 @@
             </div>
 
             <div class="chart-container">
+                <div class="custom-legend" id="custom-legend" style="display: none;">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #ef4444; border-style: dashed;"></div>
+                        <span>Target Function</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #06b6d4;"></div>
+                        <span>Neural Network Output</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color neuron-legend"></div>
+                        <span>Individual Neurons</span>
+                    </div>
+                </div>
                 <canvas id="main-chart"></canvas>
+                <div class="chart-zoom-controls">
+                    <button id="chart-zoom-in">+</button>
+                    <button id="chart-zoom-out">-</button>
+                    <button id="chart-reset">Reset</button>
+                </div>
             </div>
         </div>
     </div>

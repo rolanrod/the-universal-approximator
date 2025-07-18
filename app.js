@@ -8,6 +8,11 @@ class UniversalApproximator {
         this.zoom = 1;
         this.panX = 0;
         this.panY = 0;
+        this.neuronData = null;
+        this.animationRunning = false;
+        this.chartZoom = 1;
+        this.chartPanX = 0;
+        this.chartPanY = 0;
         this.init();
     }
 
@@ -15,6 +20,7 @@ class UniversalApproximator {
         this.setupEventListeners();
         this.setupChart();
         this.setupNetworkCanvas();
+        this.setupChartZoom();
         this.generateData();
     }
 
@@ -50,6 +56,24 @@ class UniversalApproximator {
             this.panX = 0;
             this.panY = 0;
             if (this.model) this.drawNetwork();
+        });
+
+        // Chart zoom controls
+        document.getElementById('chart-zoom-in').addEventListener('click', () => {
+            this.chartZoom = Math.min(this.chartZoom * 1.2, 5);
+            this.updateChartZoom();
+        });
+
+        document.getElementById('chart-zoom-out').addEventListener('click', () => {
+            this.chartZoom = Math.max(this.chartZoom * 0.8, 0.2);
+            this.updateChartZoom();
+        });
+
+        document.getElementById('chart-reset').addEventListener('click', () => {
+            this.chartZoom = 1;
+            this.chartPanX = 0;
+            this.chartPanY = 0;
+            this.updateChartZoom();
         });
     }
 
@@ -164,6 +188,9 @@ class UniversalApproximator {
                 plugins: {
                     title: {
                         display: true,
+                    },
+                    legend: {
+                        display: false
                     }
                 },
                 scales: {
@@ -223,7 +250,7 @@ class UniversalApproximator {
         }
     }
 
-    drawNetwork() {
+    drawNetwork(highlightStart = -1, highlightEnd = -1) {
         const ctx = this.networkCtx;
         const canvas = document.getElementById('network-canvas');
         
@@ -267,7 +294,11 @@ class UniversalApproximator {
 
         for (let i = 0; i < numNeurons; i++){
             const y = centerY + (i - numNeurons/2) * neuronSpacing;
-            this.drawNode(ctx, hiddenX, y, '#404040', '');
+            
+            const isHighlighted = (highlightStart >= 0 && i >= highlightStart && i < highlightEnd);
+            const color = isHighlighted ? '#06b6d4' : '#404040';
+            
+            this.drawNode(ctx, hiddenX, y, color, '');
         }
 
         this.drawNode(ctx, outputX, centerY, '#06b6d4', 'Output');
@@ -289,6 +320,21 @@ class UniversalApproximator {
         const xValues = await this.xData.data();
         const yTargetData = await this.yData.data();
         const numNeurons = parseInt(document.getElementById('neurons').value);
+
+        this.neuronData = {
+            predictions: predData,
+            hiddenActivations: hiddenData,
+            weights: weightData,
+            xValues: xValues,
+            yTarget: yTargetData,
+            numNeurons: numNeurons,
+        };
+
+        this.animateReLUs();
+        preds.dispose();
+        hiddenOutputs.dispose();
+        outputWeights.dispose();
+        hiddenModel.dispose();
 
         const neuronContributions = [];
         for (let neuron = 0; neuron < numNeurons; neuron++) {
@@ -321,7 +367,214 @@ class UniversalApproximator {
       this.chart.data.datasets = datasets;
         this.chart.update();
     }
+
+    async animateReLUs() {
+        this.animationRunning = true;
+        this.showTargetFunction();
+        const groupSize = Math.max(1, Math.floor(this.neuronData.numNeurons / 10));
+        const numGroups = Math.ceil(this.neuronData.numNeurons / groupSize);
+
+        let cumContributions = new Array(this.neuronData.xValues.length).fill(0);
+        for (let group = 0; group < numGroups; group++) {
+            if (!this.animationRunning) break;
+            const startNeuron = group * groupSize;
+            const endNeuron = Math.min(startNeuron + groupSize, this.neuronData.numNeurons);
+
+            this.highlightNeuronGroup(startNeuron, endNeuron);
+            this.addGroupContributions(cumContributions, startNeuron, endNeuron);
+
+            await new Promise(resolve => setTimeout(resolve, 800));
+        }
+        this.showFinalResult();
+        this.animationRunning = false;
+    }
+
+    showTargetFunction() {
+      const datasets = [{
+          label: 'Target Function',
+          data: Array.from(this.neuronData.xValues).map((x, i) => ({
+              x,
+              y: this.neuronData.yTarget[i]
+          })),
+          borderColor: '#ef4444',
+          borderWidth: 3,
+          borderDash: [5, 5],
+          pointRadius: 0,
+          fill: false
+      }];
+
+      this.chart.data.datasets = datasets;
+      this.chart.update('none');
+  }
+
+    addGroupContributions(cumulativeContributions, startNeuron, endNeuron) {
+        for (let neuron = startNeuron; neuron < endNeuron; neuron++) {
+            for (let i = 0; i < this.neuronData.xValues.length; i++) {
+                const hiddenValue = this.neuronData.hiddenActivations[i * this.neuronData.numNeurons + neuron];
+                const weight = this.neuronData.weights[neuron];
+                cumulativeContributions[i] += hiddenValue * weight;
+            }
+        }
+
+        this.updateChartWithApproximation(cumulativeContributions);
+    }
+
+    highlightNeuronGroup(startNeuron, endNeuron) {
+        this.drawNetwork(startNeuron, endNeuron);
+    }
+
+    updateChartWithApproximation(cumulativeContributions) {
+        const datasets = [
+            {
+                label: 'Target Function',
+                data: Array.from(this.neuronData.xValues).map((x, i) => ({
+                    x, 
+                    y: this.neuronData.yTarget[i]
+                })),
+                borderColor: '#ef4444',
+                borderWidth: 3,
+                borderDash: [5, 5],
+                pointRadius: 0,
+                fill: false
+            },
+            {
+                label: 'Neural Network Approximation',
+                data: Array.from(this.neuronData.xValues).map((x, i) => ({
+                    x, 
+                    y: cumulativeContributions[i]
+                })),
+                borderColor: '#06b6d4',
+                borderWidth: 3,
+                pointRadius: 0,
+                fill: false
+            }
+        ];
+        
+        this.chart.data.datasets = datasets;
+        this.chart.update('none');
+    }
+
+    showFinalResult() {
+        this.drawNetwork();
+        
+        const datasets = [
+            {
+                label: 'Target Function',
+                data: Array.from(this.neuronData.xValues).map((x, i) => ({
+                    x, 
+                    y: this.neuronData.yTarget[i]
+                })),
+                borderColor: '#ef4444',
+                borderWidth: 3,
+                borderDash: [5, 5],
+                pointRadius: 0,
+                fill: false
+            },
+            {
+                label: 'Neural Network Output',
+                data: Array.from(this.neuronData.xValues).map((x, i) => ({
+                    x, 
+                    y: this.neuronData.predictions[i]
+                })),
+                borderColor: '#06b6d4',
+                borderWidth: 3,
+                pointRadius: 0,
+                fill: false
+            }
+        ];
+                
+        const colors = ['#22c55e', '#a855f7', '#f59e0b', '#ec4899',
+        '#14b8a6', '#f97316', '#8b5cf6', '#06b6d4'];
+        const maxNeuronsToShow = this.neuronData.numNeurons;
+
+            for (let neuron = 0; neuron < maxNeuronsToShow; neuron++) {
+                const contributions = [];
+                for (let i = 0; i < this.neuronData.xValues.length; i++) {
+                    const hiddenValue = this.neuronData.hiddenActivations[i
+        * this.neuronData.numNeurons + neuron];
+                    const weight = this.neuronData.weights[neuron];
+                    contributions.push({
+                        x: this.neuronData.xValues[i],
+                        y: hiddenValue * weight
+                    });
+                }
+
+                datasets.push({
+                    data: contributions,
+                    borderColor: colors[neuron % colors.length],
+                    borderWidth: 0.3,
+                    pointRadius: 0,
+                    fill: false,
+                    showLine: true,
+                    pointStyle: false
+                });
+            }
+
+            this.chart.data.datasets = datasets;
+            this.chart.update('active');
+            
+            // Show custom legend
+            document.getElementById('custom-legend').style.display = 'flex';
+    }
+
+    updateChartZoom() {
+        const baseRange = 10; // Base range from -5 to 5
+        const range = baseRange / this.chartZoom;
+        const centerX = this.chartPanX;
+        const centerY = this.chartPanY;
+        
+        this.chart.options.scales.x.min = centerX - range/2;
+        this.chart.options.scales.x.max = centerX + range/2;
+        this.chart.options.scales.y.min = centerY - range/2;
+        this.chart.options.scales.y.max = centerY + range/2;
+        
+        this.chart.update('none');
+    }
+
+    setupChartZoom() {
+        const chartCanvas = document.getElementById('main-chart');
+        
+        // Mouse wheel zoom
+        chartCanvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? 0.9 : 1.1;
+            this.chartZoom = Math.min(Math.max(0.2, this.chartZoom * delta), 5);
+            this.updateChartZoom();
+        });
+
+        // Mouse drag to pan
+        let isDragging = false;
+        let lastX, lastY;
+
+        chartCanvas.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            lastX = e.offsetX;
+            lastY = e.offsetY;
+        });
+
+        chartCanvas.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                const deltaX = (e.offsetX - lastX) * 0.01 / this.chartZoom;
+                const deltaY = (e.offsetY - lastY) * 0.01 / this.chartZoom;
+                this.chartPanX -= deltaX;
+                this.chartPanY += deltaY; // Inverted for chart coordinates
+                lastX = e.offsetX;
+                lastY = e.offsetY;
+                this.updateChartZoom();
+            }
+        });
+
+        chartCanvas.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+
+        chartCanvas.addEventListener('mouseleave', () => {
+            isDragging = false;
+        });
+    }
+
 }
+
 document.addEventListener('DOMContentLoaded', () => {
     new UniversalApproximator();
 });
